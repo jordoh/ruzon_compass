@@ -1,0 +1,55 @@
+Greetings!                                                2 December 2004
+
+Thank you for your interest in my code.  I hope you are able to compile it,
+run it, and generate interesting results from it.  Unfortunately, my ability
+to help in this regard is somewhat limited due to other demands on my time.
+
+The files you have just downloaded can be compiled into four separate
+executables:
+
+(1) the edge and corner detector described in my CVPR99, ICCV99, and PAMI
+    (November 2001) articles.  The actual code is in compass.c.  The file
+    compassmex.c contains a wrapper that works with MATLAB 6 and 7.
+
+(2) a grey scale version of the above operator for intensity images, 
+    described only in my dissertation.  The actual code is in greycompass.c,
+    with a MATLAB wrapper called greycompassmex.c.
+
+(3) the grey scale version also has a wrapper greycompassunix.c that allows
+    it to be run from the command line.
+
+(4) the clustering code for Orchard and Bouman's binary split algorithm is
+    found in bs.c, with a MATLAB wrapper bsmex.c.
+
+In addition, RGBLab.c converts color values between RGB and CIE-Lab.  It is
+useful in its own right.  Also, the Earth Mover's Distance code is in emd.c.
+It is also very useful.  Refer to the papers and Stanford web pages of my
+former colleague Yossi Rubner for more information.
+
+There are also some .m files included for MATLAB users.  compassmex.m 
+contains a help file, while PCorners.m contains the code for converting the 
+output of the corner detector into a set of corners following the 
+algorithms listed in the papers.  PCorners calls other helper routines
+that have been included: maximize.m, gimage.m, and NMS.m.
+
+If you do decide to go ahead with my code, please send me e-mail.  Even if
+you're not happy with it, I'd still like to know.  If you do write a wrapper 
+for some other shell or software and would like to donate it, I would be 
+happy to add it to this set of files.
+
+Files added so far include:
+
+* RuzonCompassPython.tar.gz: a Python wrapper for the compass operator,
+  donated by Edward C. Jones, 16 April 2002
+
+Thanks also to Thomas Hurtut for pointing out deficiencies in the
+original distribution of the MATLAB code.
+
+Finally, whatever you learn from using my code is always interesting to
+me.  Feel free to drop me a line telling me what difference it has made
+to you.
+
+Sincerely,
+Mark Ruzon
+ruzon@cs.stanford.edu
+
