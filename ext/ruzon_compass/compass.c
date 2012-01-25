@@ -17,12 +17,12 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <string.h> // for memset
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-//#include <mex.h>
-#include "matrix.h"
+#include <ruby.h>
 #include "compass.h"
 #include "bs.h"
 #include "emd.h"
@@ -426,7 +426,7 @@ void ConvertImage(void *imgdata, int imgrows, int imgcols, enum imgtype type,
   *a = (ImgElt *)malloc(sheetelts * sizeof(ImgElt));
   *b = (ImgElt *)malloc(sheetelts * sizeof(ImgElt));
   if (!*L || !*a || !*b)
-    mexErrMsgTxt("Image could not be allocated (out of memory)");
+    rb_raise(rb_eStandardError, "Image could not be allocated (out of memory)");
 
   if (type == LabImg) /* imgdata is double * */
 
@@ -465,7 +465,7 @@ int CreateMask(double sigma, int wedges, int radius, double **mask,
 
   *mask = MakeQtrMask(sigma * 3.0, wedges);
   if (!*mask)
-    mexErrMsgTxt("mask could not be allocated (out of memory)");
+    rb_raise(rb_eStandardError, "mask could not be allocated (out of memory)");
 
   /* Create a normalized Gaussian mask in Quadrant I */
   /* MATLAB matrices (and hence this mask) are in column order */
@@ -541,16 +541,16 @@ int ClusterPoints(float *L, float *a, float *b, double *masksum,
   
   points = (float *)malloc(DIM * totalpoints * sizeof(float));
   if (!points)
-    mexErrMsgTxt("points could not be allocated (out of memory)");
+    rb_raise(rb_eStandardError, "points could not be allocated (out of memory)");
   temp = points; /* temp will walk through the data array */
 
   weights = (float *)malloc(totalpoints * sizeof(float));
   if (!weights)
-    mexErrMsgTxt("weights could not be allocated (out of memory)");
+    rb_raise(rb_eStandardError, "weights could not be allocated (out of memory)");
   temp2 = weights; /* same here */
 
   if (PRINT_SAMPLING)
-    mexPrintf("Total weight: %f (%.2f) Max: %f  Desired: %f\n", totalweight,
+    printf("Total weight: %f (%.2f) Max: %f  Desired: %f\n", totalweight,
 	  totalweight / totalpoints, masksum[radius-1],
 	  ((float) totalpoints * SAMPLE_PERCENTAGE));
 
@@ -843,10 +843,10 @@ void Compass(void *imgdata, int imgrows, int imgcols, enum imgtype type,
   /* 4 * nwedges is the maximum number of orientations */
   work = (float *)malloc(4 * nwedges * sizeof(float));
   if (!work)
-    mexErrMsgTxt("work could not be allocated (out of memory)");
+    rb_raise(rb_eStandardError, "work could not be allocated (out of memory)");
   hist = (double *)malloc(nwedges * 4 * MAXCLUSTERS * sizeof(double));
   if (!hist)
-    mexErrMsgTxt("hist could not be allocated (out of memory)");
+    rb_raise(rb_eStandardError, "hist could not be allocated (out of memory)");
   for (i = 0; i < MAXCLUSTERS; i++)
     f[i] = i;
   s1.Features = f;
