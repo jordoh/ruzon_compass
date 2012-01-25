@@ -18,24 +18,7 @@ static VALUE ruzon_compass(VALUE self, VALUE data, VALUE width, VALUE height, VA
   VALUE const * const imageDataPtr = RARRAY_PTR(data);
   
   /* Argument #0: the image */
-  void* imgData = NULL;
-  enum imgtype imageDataType;
-  
-  if (TYPE(imageDataPtr[0]) == T_FLOAT) {
-    double* typedImgData = (double*)malloc(sizeof(double) * imageDataLength);
-    for (i = 0; i < imageDataLength; ++i) {
-      typedImgData[i] = NUM2DBL(imageDataPtr[i]);
-    }
-    imgData = typedImgData;
-    imageDataType = LabImg;
-  } else {
-    unsigned char* typedImgData = (unsigned char*)malloc(sizeof(unsigned char) * imageDataLength);
-    for (i = 0; i < imageDataLength; ++i) {
-      typedImgData[i] = NUM2INT(imageDataPtr[i]);
-    }
-    imgData = typedImgData;
-    imageDataType = RGBImg;
-  }
+  const enum imgtype imageDataType = TYPE(imageDataPtr[0]) == T_FLOAT ? LabImg : RGBImg;
 
   /* Argument #1: one or more standard deviation values */
   /* Modified 31 July 1999 so that standard deviations (sigmas) rather than
@@ -122,7 +105,7 @@ static VALUE ruzon_compass(VALUE self, VALUE data, VALUE width, VALUE height, VA
   strength[0] = (double*)malloc(sizeof(double) * strengthLength);
 
   Compass(
-    /* void* imgdata        */ imgData,
+    /* VALUE imgdata        */ data,
     /* int imgrows          */ rows,
     /* int imgcols          */ cols,
     /* enum imgtype type    */ imageDataType,
@@ -161,7 +144,6 @@ static VALUE ruzon_compass(VALUE self, VALUE data, VALUE width, VALUE height, VA
   free(dimensions);
   free(spacing);
   free(sigmasData);
-  free(imgData);
   
   return result;
 }

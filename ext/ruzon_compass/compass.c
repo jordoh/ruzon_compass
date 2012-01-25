@@ -412,7 +412,7 @@ double *MakeQtrMask(double r, int nwedges)
  * to the internal representation, going through RGB2Lab if necessary.
  * The image is also cropped according to the given dimensions.
  */
-void ConvertImage(void *imgdata, int imgrows, int imgcols, enum imgtype type,
+void ConvertImage(VALUE imgdata, int imgrows, int imgcols, enum imgtype type,
 		 double *dimensions, int maxscale, int *rows, int *cols,
 		 float **L, float **a, float **b)
 {
@@ -428,15 +428,16 @@ void ConvertImage(void *imgdata, int imgrows, int imgcols, enum imgtype type,
   if (!*L || !*a || !*b)
     rb_raise(rb_eStandardError, "Image could not be allocated (out of memory)");
 
+  VALUE const * const imgdataptr = RARRAY_PTR(imgdata);
   if (type == LabImg) /* imgdata is double * */
 
     for (i = dimensions[0] - maxscale; i < dimensions[2] + maxscale; i++)
       for (j = dimensions[1] - maxscale; j < dimensions[3] + maxscale; j++) {
 	index1 = (j-dimensions[1]+maxscale)*(*rows)+(i-dimensions[0]+maxscale);
 	index2 = j * imgrows + i;
-	(*L)[index1] = ((double *)imgdata)[index2];
-	(*a)[index1] = ((double *)imgdata)[index2+npixels];
-	(*b)[index1] = ((double *)imgdata)[index2+2*npixels];
+	(*L)[index1] = NUM2DBL(imgdataptr[index2]);
+	(*a)[index1] = NUM2DBL(imgdataptr[index2+npixels]);
+	(*b)[index1] = NUM2DBL(imgdataptr[index2+2*npixels]);
       }
 
   else /* imgdata is unsigned char * */
@@ -445,9 +446,9 @@ void ConvertImage(void *imgdata, int imgrows, int imgcols, enum imgtype type,
       for (j = dimensions[1] - maxscale; j < dimensions[3] + maxscale; j++) {
 	index1 = (j-dimensions[1]+maxscale)*(*rows)+(i-dimensions[0]+maxscale);
 	index2 = j * imgrows + i;
-	RGB2Lab((float)((unsigned char *)imgdata)[index2],
-		(float)((unsigned char *)imgdata)[index2+npixels],
-		(float)((unsigned char *)imgdata)[index2+2*npixels],
+	RGB2Lab((float)((unsigned char)NUM2INT(imgdataptr[index2])),
+		(float)((unsigned char)NUM2INT(imgdataptr[index2+npixels])),
+		(float)((unsigned char)NUM2INT(imgdataptr[index2+2*npixels])),
 		&(*L)[index1], &(*a)[index1], &(*b)[index1]);
       }
 }
@@ -819,7 +820,7 @@ void ComputeOutputParameters(float *work, int nwedges, int nori, int index,
 }
 
 
-void Compass(void *imgdata, int imgrows, int imgcols, enum imgtype type,
+void Compass(VALUE imgdata, int imgrows, int imgcols, enum imgtype type,
 	     double *sigmas, int numsigmas, int maxradius, double *spacing, 
 	     double *dimensions, double *angles, int numangles, int nwedges, 
 	     double *maxclusters, int plot, double **strength, 
