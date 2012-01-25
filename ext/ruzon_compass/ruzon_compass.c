@@ -1,117 +1,172 @@
 #include <ruby.h>
 #include <math.h>
+#include "bs.h"
 #include "compass.h"
 
-static VALUE ruzon_compass(VALUE self, VALUE data, VALUE width, VALUE height, VALUE sigmas) {
+static VALUE ruzon_compass(VALUE self, VALUE data, VALUE width, VALUE height, VALUE sigmas, VALUE angles) {
   Check_Type(data, T_ARRAY);
   Check_Type(sigmas, T_ARRAY);
+  if (angles != Qnil) {
+    Check_Type(angles, T_ARRAY);
+  }
 
   int i, j;
 
-  int rows = NUM2INT(height);
-  int cols = NUM2INT(width);
-
-  int image_data_length = RARRAY_LEN(data);
-//  unsigned char* img_data = (unsigned char*)malloc(sizeof(unsigned char) * image_data_length);
-//  for (i = 0; i < image_data_length; ++i)
-//      img_data[i] = NUM2INT(RARRAY_PTR(data)[i]);
-  double* img_data = (double*)malloc(sizeof(double) * image_data_length);
-  for (i = 0; i < image_data_length; ++i)
-      img_data[i] = NUM2DBL(RARRAY_PTR(data)[i]);
+  const int rows = NUM2INT(height);
+  const int cols = NUM2INT(width);
+  const int imageDataLength = RARRAY_LEN(data);
+  VALUE const * const imageDataPtr = RARRAY_PTR(data);
+  
+  /* Argument #0: the image */
+  void* imgData = NULL;
+  enum imgtype imageDataType;
+  
+  if (TYPE(imageDataPtr[0]) == T_FLOAT) {
+    double* typedImgData = (double*)malloc(sizeof(double) * imageDataLength);
+    for (i = 0; i < imageDataLength; ++i) {
+      typedImgData[i] = NUM2DBL(imageDataPtr[i]);
+    }
+    imgData = typedImgData;
+    imageDataType = LabImg;
+  } else {
+    unsigned char* typedImgData = (unsigned char*)malloc(sizeof(unsigned char) * imageDataLength);
+    for (i = 0; i < imageDataLength; ++i) {
+      typedImgData[i] = NUM2INT(imageDataPtr[i]);
+    }
+    imgData = typedImgData;
+    imageDataType = RGBImg;
+  }
 
   /* Argument #1: one or more standard deviation values */
   /* Modified 31 July 1999 so that standard deviations (sigmas) rather than
    * radii are specified; also, sigmas can be floating-point values */
-  int num_sigmas = (int)RARRAY_LEN(sigmas);
-  double* sigmas_data = (double*)malloc(sizeof(double) * num_sigmas);
-  for (i = 0; i < num_sigmas; ++i)
-    sigmas_data[i] = rb_num2dbl(RARRAY_PTR(sigmas)[i]);
+  const int numSigmas = RARRAY_LEN(sigmas);
+  VALUE const * const sigmasPtr = RARRAY_PTR(sigmas);
+  
+  double* sigmasData = (double*)malloc(sizeof(double) * numSigmas);
+  for (i = 0; i < numSigmas; ++i) {
+    sigmasData[i] = NUM2DBL(sigmasPtr[i]);
+  }
 
-  double max_sigma = -1.0;
-  for (i = 0; i < num_sigmas; ++i)
-    if (sigmas_data[i] > max_sigma)
-        max_sigma = sigmas_data[i];
+  double maxSigma = -1.0;
+  for (i = 0; i < numSigmas; ++i)
+    if (sigmasData[i] > maxSigma)
+        maxSigma = sigmasData[i];
 
-  double max_radius = ceil(3.0 * max_sigma);
-  //if (max_sigma * 2 > rows || max_sigma * 2 > cols)
-  //    mexErrMsgTxt("Image is too small for maximum scale chosen");
+  double maxRadius = ceil(3.0 * maxSigma);
+  if (maxSigma * 2 > rows || maxSigma * 2 > cols) {
+    rb_raise(rb_eStandardError, "Image is too small for maximum scale chosen");
+  }
 
   /* Argument #2: the spacing for each application of the operator */
-  double* spacing = (double*)malloc(sizeof(double) * num_sigmas);
-  for (i = 0; i < num_sigmas; ++i)
+  double* spacing = (double*)malloc(sizeof(double) * numSigmas);
+  for (i = 0; i < numSigmas; ++i) {
     spacing[i] = 1.0;
+  }
 
   /* Argument #3: Dimensions of the sub-image to find edges over */
   double* dimensions = (double*)malloc(sizeof(double) * 4);
-  dimensions[0] = max_radius;
-  dimensions[1] = max_radius;
-  dimensions[2] = rows - max_radius;
-  dimensions[3] = cols - max_radius;
+  dimensions[0] = maxRadius;
+  dimensions[1] = maxRadius;
+  dimensions[2] = rows - maxRadius;
+  dimensions[3] = cols - maxRadius;
 
   /* Argument #4: Number of angles (alpha values in ICCV99) to compute */
-  int num_angles = 1;
-  double* angles = (double*)malloc(sizeof(double) * num_angles);
-  angles[0] = 180;
-
+  double* anglesData;
+  int numAngles;
+  if (angles != Qnil) {
+    numAngles = RARRAY_LEN(angles);
+    anglesData = (double*)malloc(sizeof(double) * numAngles);
+    
+    VALUE const * const anglesPtr = RARRAY_PTR(angles);
+    for (i = 0; i < numAngles; i++) {
+      anglesData[i] = NUM2DBL(anglesPtr[i]);
+      if (anglesData[i] <= 0 || anglesData[i] > 180) {
+        rb_raise(rb_eStandardError, "All angles must be between 0 and 180");
+      }
+    }
+  } else {
+    numAngles = 1;
+    anglesData = (double*)malloc(sizeof(double) * numAngles);
+    
+    anglesData[0] = 180.0;
+  }
 
   /* Argument #5: the number of wedges in one quarter of the circle */
-  int num_wedges = 6;
+  const int numWedges = 6;
+  if (numWedges * 2 > MAXWEDGES) {
+    rb_raise(rb_eStandardError, "Too many wedges");
+  }
+  
+  const double wedgeAngle = 90.0 / numWedges;
+  for (i = 0; i < numAngles; i++) {
+    if (anglesData[i]/wedgeAngle != floor(anglesData[i]/wedgeAngle)) {
+      rb_raise(rb_eStandardError, "Angles chosen not compatible with number of wedges");
+    }
+  }
 
   /* Argument #6: the maximum number of clusters in a color signature */
-  double* max_clusters = (double*)malloc(sizeof(double) * num_sigmas);
-  for (i = 0; i < num_sigmas; i++) {
-    max_clusters[i] = 10;
-    //if (maxclusters[i] > MAXCLUSTERS)
-  	//mexErrMsgTxt("Maximum number of clusters greater than allowed");
+  double* maxClusters = (double*)malloc(sizeof(double) * numSigmas);
+  for (i = 0; i < numSigmas; i++) {
+    maxClusters[i] = 10;
+    if (maxClusters[i] > MAXCLUSTERS) {
+  	  rb_raise(rb_eStandardError, "Maximum number of clusters greater than allowed");
+  	}
   }
 
   /* Allocate output arguments */ 
-  int stength_height = rows;//(int)(dimensions[2] - dimensions[0])/(int)spacing[0] + 1;
-  int stength_width = cols;//(int)(dimensions[3] - dimensions[1])/(int)spacing[0] + 1;
-  int strength_image_length = stength_width * stength_height;
-  double** strength = (double**)malloc(sizeof(double*) * num_sigmas * num_angles);
-  strength[0] = (double*)malloc(sizeof(double) * strength_image_length);
+  int strengthHeight = rows;//(int)(dimensions[2] - dimensions[0])/(int)spacing[0] + 1;
+  int strengthWidth = cols;//(int)(dimensions[3] - dimensions[1])/(int)spacing[0] + 1;
+  int strengthLength = strengthWidth * strengthHeight;
+  double** strength = (double**)malloc(sizeof(double*) * numSigmas * numAngles);
+  strength[0] = (double*)malloc(sizeof(double) * strengthLength);
 
-//    void Compass(void *imgdata, int imgrows, int imgcols, enum imgtype type,
-//    	     double *sigmas, int numsigmas, int maxradius, double *spacing,
-//    	     double *dimensions, double *angles, int numangles, int nwedges,
-//    	     double *maxclusters, int plot, mxArray **strength,
-//    	     mxArray **abnormality, mxArray **orientation,
-//    	     mxArray **uncertainty)
   Compass(
-    /* void *imgdata          */ img_data,
-    /* int imgrows             */ rows,
-    /* int imgcols              */ cols,
-    /* enum imgtype type */ LabImg,//RGBImg,
-    sigmas_data, num_sigmas, max_radius, spacing,
-    dimensions, angles, num_angles, num_wedges,
-    max_clusters, 0, strength, NULL, NULL, NULL
+    /* void* imgdata        */ imgData,
+    /* int imgrows          */ rows,
+    /* int imgcols          */ cols,
+    /* enum imgtype type    */ imageDataType,
+    /* double* sigmas       */ sigmasData, 
+    /* int numsigmas        */ numSigmas, 
+    /* int maxradius        */ maxRadius, 
+    /* double* spacing      */ spacing,
+    /* double* dimensions   */ dimensions, 
+    /* double* angles       */ anglesData, 
+    /* int numangles        */ numAngles, 
+    /* int nwedges          */ numWedges,
+    /* double* maxclusters  */ maxClusters, 
+    /* int plot             */ 0, 
+    /* double** strength    */ strength, 
+    /* double** abnormality */ NULL, 
+    /* double** orientation */ NULL, 
+    /* double** uncertainty */ NULL
   );
 
-  VALUE result = rb_ary_new();
-  for (i=0; i<num_sigmas * num_angles; ++i) {
-    double* strength_image = strength[i];
+  VALUE result = rb_ary_new2(numSigmas * numAngles);
+  for (i = 0; i < numSigmas * numAngles; ++i) {
+    double* strengthImage = strength[i];
     
-    for (j=0; j<strength_image_length; ++j) {
-      rb_ary_push(result, DBL2NUM(strength_image[j]));
+    VALUE strengthResult = rb_ary_new2(strengthLength);;
+    for (j = 0; j < strengthLength; ++j) {
+      rb_ary_store(strengthResult, j, DBL2NUM(strengthImage[j]));
     }
+    free(strengthImage);
     
-    free(strength_image);
+    rb_ary_push(result, strengthResult);
   }
   free(strength);
-
-  free(max_clusters);
-  free(angles);
+  
+  free(maxClusters);
+  free(anglesData);
   free(dimensions);
   free(spacing);
-  free(sigmas_data);
-  free(img_data);
+  free(sigmasData);
+  free(imgData);
   
   return result;
 }
 
-/* ruby calls this to load the extension */
 void Init_ruzon_compass(void) {
   VALUE target = rb_define_module("RuzonCompass");
-  rb_define_singleton_method(target, "compass", ruzon_compass, 4);
+  rb_define_singleton_method(target, "compass", ruzon_compass, 5);
 }
