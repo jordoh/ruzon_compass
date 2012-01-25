@@ -821,9 +821,9 @@ void ComputeOutputParameters(float *work, int nwedges, int nori, int index,
 void Compass(void *imgdata, int imgrows, int imgcols, enum imgtype type,
 	     double *sigmas, int numsigmas, int maxradius, double *spacing, 
 	     double *dimensions, double *angles, int numangles, int nwedges, 
-	     double *maxclusters, int plot, mxArray **strength, 
-	     mxArray **abnormality, mxArray **orientation, 
-	     mxArray **uncertainty)
+	     double *maxclusters, int plot, double **strength, 
+	     double **abnormality, double **orientation, 
+	     double **uncertainty)
 {
   int subimgrows, subimgcols, npoints, outputrows, outputcols, cellindex, mc;
   int h, i, j, k, r, c, index, s, space, nclusters, nori, anglewedges, masksz;
@@ -904,18 +904,18 @@ void Compass(void *imgdata, int imgrows, int imgcols, enum imgtype type,
 	  outmass = sum * (WEDGEWT * 2 + 4 * nwedges - anglewedges - 2); 
 	  nori = (angles[h] == 180) ? 2 * nwedges : 4 * nwedges;
 	  cellindex = s * numangles + h;
-	  str = mxGetPr(strength[cellindex]);
-	  outputrows = mxGetM(strength[cellindex]);
+	  str = strength[cellindex];
+	  outputrows = subimgrows;
 	  if (plot)
-	    outputcols = mxGetN(strength[cellindex]) / nori;
+	    outputcols = subimgcols / nori;
 	  else
-	    outputcols = mxGetN(strength[cellindex]);
+	    outputcols = subimgcols;
 	  if (abnormality)
-	    ab = mxGetPr(abnormality[cellindex]);
+	    ab = abnormality[cellindex];
 	  if (orientation)
-	    ori = mxGetPr(orientation[cellindex]);
+	    ori = orientation[cellindex];
 	  if (uncertainty)
-	    unc = mxGetPr(uncertainty[cellindex]);
+	    unc = uncertainty[cellindex];
 
 	  /* Compute initial histogram sums */
 	  for (i = 0; i < nclusters; i++) {
