@@ -96,6 +96,7 @@ void AddWeight(float *L, float *a, float *b, double weight, int row,
   int index = col * nrows + row, min_index, i;
   double dist, Ldist, adist, bdist, min_dist = 100 * 240 * 240;
 
+  min_index = 0;
   for (i = 0; i < nclusters; i++) {
     Ldist = L[index] - data[i][0];
     adist = a[index] - data[i][1];
