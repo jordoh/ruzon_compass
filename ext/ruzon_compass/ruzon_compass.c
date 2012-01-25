@@ -1,19 +1,23 @@
 #include <ruby.h>
-#include "matrix.h"
+#include <math.h>
 #include "compass.h"
 
 static VALUE ruzon_compass(VALUE self, VALUE data, VALUE width, VALUE height, VALUE sigmas) {
   Check_Type(data, T_ARRAY);
   Check_Type(sigmas, T_ARRAY);
 
-  int i = 0;
+  int i, j;
 
   int rows = NUM2INT(height);
   int cols = NUM2INT(width);
 
-  double* img_data = (double*)malloc(sizeof(double) * rows * cols);
-  for (i = 0; i < RARRAY_LEN(data); ++i)
-      img_data[i] = rb_num2dbl(RARRAY_PTR(data)[i]);
+  int image_data_length = RARRAY_LEN(data);
+//  unsigned char* img_data = (unsigned char*)malloc(sizeof(unsigned char) * image_data_length);
+//  for (i = 0; i < image_data_length; ++i)
+//      img_data[i] = NUM2INT(RARRAY_PTR(data)[i]);
+  double* img_data = (double*)malloc(sizeof(double) * image_data_length);
+  for (i = 0; i < image_data_length; ++i)
+      img_data[i] = NUM2DBL(RARRAY_PTR(data)[i]);
 
   /* Argument #1: one or more standard deviation values */
   /* Modified 31 July 1999 so that standard deviations (sigmas) rather than
@@ -34,8 +38,8 @@ static VALUE ruzon_compass(VALUE self, VALUE data, VALUE width, VALUE height, VA
 
   /* Argument #2: the spacing for each application of the operator */
   double* spacing = (double*)malloc(sizeof(double) * num_sigmas);
-  for (i = 0; i < num_sigmas; i++)
-    spacing[i] = 1;
+  for (i = 0; i < num_sigmas; ++i)
+    spacing[i] = 1.0;
 
   /* Argument #3: Dimensions of the sub-image to find edges over */
   double* dimensions = (double*)malloc(sizeof(double) * 4);
@@ -61,7 +65,12 @@ static VALUE ruzon_compass(VALUE self, VALUE data, VALUE width, VALUE height, VA
   	//mexErrMsgTxt("Maximum number of clusters greater than allowed");
   }
 
-  /* Allocate output arguments */
+  /* Allocate output arguments */ 
+  int stength_height = rows;//(int)(dimensions[2] - dimensions[0])/(int)spacing[0] + 1;
+  int stength_width = cols;//(int)(dimensions[3] - dimensions[1])/(int)spacing[0] + 1;
+  int strength_image_length = stength_width * stength_height;
+  double** strength = (double**)malloc(sizeof(double*) * num_sigmas * num_angles);
+  strength[0] = (double*)malloc(sizeof(double) * strength_image_length);
 
 //    void Compass(void *imgdata, int imgrows, int imgcols, enum imgtype type,
 //    	     double *sigmas, int numsigmas, int maxradius, double *spacing,
@@ -70,11 +79,26 @@ static VALUE ruzon_compass(VALUE self, VALUE data, VALUE width, VALUE height, VA
 //    	     mxArray **abnormality, mxArray **orientation,
 //    	     mxArray **uncertainty)
   Compass(
-    img_data, rows, cols, LabImg,
+    /* void *imgdata          */ img_data,
+    /* int imgrows             */ rows,
+    /* int imgcols              */ cols,
+    /* enum imgtype type */ LabImg,//RGBImg,
     sigmas_data, num_sigmas, max_radius, spacing,
     dimensions, angles, num_angles, num_wedges,
-    max_clusters, 1, NULL, NULL, NULL, NULL
+    max_clusters, 0, strength, NULL, NULL, NULL
   );
+
+  VALUE result = rb_ary_new();
+  for (i=0; i<num_sigmas * num_angles; ++i) {
+    double* strength_image = strength[i];
+    
+    for (j=0; j<strength_image_length; ++j) {
+      rb_ary_push(result, DBL2NUM(strength_image[j]));
+    }
+    
+    free(strength_image);
+  }
+  free(strength);
 
   free(max_clusters);
   free(angles);
@@ -82,8 +106,8 @@ static VALUE ruzon_compass(VALUE self, VALUE data, VALUE width, VALUE height, VA
   free(spacing);
   free(sigmas_data);
   free(img_data);
-
-  return rb_str_new2("compass");
+  
+  return result;
 }
 
 /* ruby calls this to load the extension */
