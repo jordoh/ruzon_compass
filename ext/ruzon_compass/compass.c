@@ -480,44 +480,44 @@ int CreateMask(double sigma, int wedges, int radius, double **mask,
     }
 
   if (PRINT_GAUSSIAN) {
-    mexPrintf("Gaussian\n[");
+    printf("Gaussian\n[");
     for (j = 0; j < radius; j++) {
       for (k = 0; k < radius; k++)
-	mexPrintf("%.3f ",gauss[k*radius + j]);
-      mexPrintf("\n");
+	printf("%.3f ",gauss[k*radius + j]);
+      printf("\n");
     }
-    mexPrintf("];\n");
+    printf("];\n");
   }
 
   *sum = (double *)malloc(radius*radius * sizeof(double));
   if (!*sum)
-    mexErrMsgTxt("sum could not be allocated (out of memory)");
+    rb_raise(rb_eStandardError, "sum could not be allocated (out of memory)");
   for (i = 0; i < radius * radius * wedges; i++) {
     (*mask)[i] *= gauss[i % (radius * radius)];
     (*sum)[i % (radius * radius)] += (*mask)[i];
   }
 
   if (PRINT_MASK) {
-    mexPrintf("Mask\n");
+    printf("Mask\n");
     for (i = 0; i < wedges; i++) {
-      mexPrintf("[");
+      printf("[");
       for (j = 0; j < radius; j++) {
 	for (k = 0; k < radius; k++)
-	  mexPrintf("%.3f ",(*mask)[i*radius*radius + k*radius + j]);
-	mexPrintf("\n");
+	  printf("%.3f ",(*mask)[i*radius*radius + k*radius + j]);
+	printf("\n");
       }
-      mexPrintf("];\n");
+      printf("];\n");
     }
   }
 
   if (PRINT_MASKSUM) {
-    mexPrintf("Mask Sum\n[");
+    printf("Mask Sum\n[");
     for (j = 0; j < radius; j++) {
       for (k = 0; k < radius; k++)
-	mexPrintf("%.3f ",(*sum)[k*radius + j]);
-      mexPrintf("\n");
+	printf("%.3f ",(*sum)[k*radius + j]);
+      printf("\n");
     }
-    mexPrintf("];\n");
+    printf("];\n");
   }
 
   for (i = 0; i < radius * radius; i++)
@@ -594,7 +594,7 @@ int ClusterPoints(float *L, float *a, float *b, double *masksum,
       }
 
   if (PRINT_SAMPLING)
-    mexPrintf("Simple=%d Ratio: %.3f  Points: %d of %d  Pixel percentage: %.2f\n", simple, ratio, npoints, totalpoints, (double) npoints / (double) totalpoints);
+    printf("Simple=%d Ratio: %.3f  Points: %d of %d  Pixel percentage: %.2f\n", simple, ratio, npoints, totalpoints, (double) npoints / (double) totalpoints);
 
   /* Cluster using binary split algorithm */
   /* Changed 18 May 99 to include indexing */
@@ -607,12 +607,12 @@ int ClusterPoints(float *L, float *a, float *b, double *masksum,
 
   if (PRINT_CLUSTERS)
     for (i = 0; i < nclusters; i++)
-      mexPrintf("%3d: %6.2f %6.2f %6.2f\n",i,cluster[i][0],cluster[i][1],
+      printf("%3d: %6.2f %6.2f %6.2f\n",i,cluster[i][0],cluster[i][1],
 		cluster[i][2]);
 
   free(points);
   free(weights);
-  free(temp);       /* Not created using mxCalloc */
+  free(temp);
   free(index);      /* This must be passed back for use in CreateWedgeHist */
 
   return(nclusters);
@@ -680,13 +680,13 @@ void ComputeCostMatrix(float cluster[][DIM], int nclusters)
         /* cost[i][j] = sqrt(dist) / 100; */
       }
       if (PRINT_COST)
-	mexPrintf("%.2f ",cost[i][j]);
+	printf("%.2f ",cost[i][j]);
       }
     if (PRINT_COST)
-      mexPrintf("\n");
+      printf("\n");
   }
   if (PRINT_COST)
-    mexPrintf("\n");
+    printf("\n");
 }
 
 
@@ -881,7 +881,7 @@ void Compass(void *imgdata, int imgrows, int imgcols, enum imgtype type,
     for (r = maxradius; r <= subimgrows - maxradius; r += space)
       for (c = maxradius; c <= subimgcols - maxradius; c += space) {
 	if (PRINT_LOC)
-	  mexPrintf("Sigma %.2f, Row %3d, Column %3d\n", sigma,
+	  printf("Sigma %.2f, Row %3d, Column %3d\n", sigma,
 		    (int)dimensions[0]+r-maxradius, 
 		    (int)dimensions[1]+c-maxradius);
 
@@ -949,11 +949,11 @@ void Compass(void *imgdata, int imgrows, int imgcols, enum imgtype type,
 
 	    if (PRINT_HIST) {
 	      for (j = 0; j < nclusters; j++)
-		mexPrintf("%.2f ",hist1norm[j]);
-	      mexPrintf("\n");
+		printf("%.2f ",hist1norm[j]);
+	      printf("\n");
 	      for (j = 0; j < nclusters; j++)
-		mexPrintf("%.2f ",hist2norm[j]);
-	      mexPrintf("\n\n");
+		printf("%.2f ",hist2norm[j]);
+	      printf("\n\n");
 	    }
 	  
 	    /* Compute EMD */
@@ -969,7 +969,7 @@ void Compass(void *imgdata, int imgrows, int imgcols, enum imgtype type,
 		 outputrows + (r - maxradius) / space] = work[i];
 
 	    if (DEBUG)
-	      mexPrintf("%.4f ",work[i]);
+	      printf("%.4f ",work[i]);
 	  
 	    /* Update the histograms except for the last iteration */
 	    if (i < nori - 1)
@@ -989,13 +989,14 @@ void Compass(void *imgdata, int imgrows, int imgcols, enum imgtype type,
 	      }
 	  }
 	  if (DEBUG)
-	    mexPrintf("\n");
+	    printf("\n");
+
 
 	  ComputeOutputParameters(work, nwedges, nori, 
               (c - maxradius) / space * outputrows + (r - maxradius) / space, 
 				  outputrows * outputcols, plot,
 				  str, ab, unc, ori);
-
+    
  
 	} /* Next angle */
 
